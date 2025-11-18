@@ -1,0 +1,95 @@
+services:
+  db:
+    image: postgres:13
+    environment:
+      POSTGRES_DB: messenger
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+
+  backend1:
+    build: ./backend
+    environment:
+      DATABASE_URL: postgresql://user:password@db:5432/messenger
+      ENCRYPTION_KEY: hjZ6EeTxce9pfGh8ibiKitSbfaGCNvHeBAKDoCHjz6Q=
+      REDIS_URL: redis://redis:6379
+    depends_on:
+      - db
+      - redis
+    volumes:
+      - ./backend:/app
+
+  backend2:
+    build: ./backend
+    environment:
+      DATABASE_URL: postgresql://user:password@db:5432/messenger
+      REDIS_URL: redis://redis:6379
+      ENCRYPTION_KEY: hjZ6EeTxce9pfGh8ibiKitSbfaGCNvHeBAKDoCHjz6Q=
+    depends_on:
+      - db
+      - redis
+    volumes:
+      - ./backend:/app
+
+  nginx:
+    build:
+      context: .
+      dockerfile: nginx/Dockerfile
+    ports:
+      - "80:80"
+    depends_on:
+      - backend1
+      - backend2
+
+  # Мониторинг
+#  prometheus:
+#    image: prom/prometheus
+#    ports:
+#      - "9090:9090"
+#    volumes:
+#      - ./monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+#    command:
+#      - '--config.file=/etc/prometheus/prometheus.yml'
+#      - '--storage.tsdb.path=/prometheus'
+#      - '--web.console.libraries=/etc/prometheus/console_libraries'
+#      - '--web.console.templates=/etc/prometheus/consoles'
+#
+#  grafana:
+#    image: grafana/grafana
+#    ports:
+#      - "3000:3000"
+#    environment:
+#      - GF_SECURITY_ADMIN_PASSWORD=admin
+#    volumes:
+#      - grafana-storage:/var/lib/grafana
+
+  node-exporter:
+    image: prom/node-exporter
+    ports:
+      - "9100:9100"
+
+  redis-exporter:
+    image: oliver006/redis_exporter
+    ports:
+      - "9121:9121"
+    environment:
+      REDIS_ADDR: redis://redis:6379
+
+  postgres-exporter:
+    image: wrouesnel/postgres_exporter
+    ports:
+      - "9187:9187"
+    environment:
+      DATA_SOURCE_NAME: postgresql://user:password@db:5432/messenger?sslmode=disable
+
+volumes:
+  postgres_data:
+  grafana-storage:

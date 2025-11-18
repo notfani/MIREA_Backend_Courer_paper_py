@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Мессенджер</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div id="auth">
+        <h2>Вход</h2>
+        <input type="text" id="username" placeholder="Имя пользователя">
+        <input type="password" id="password" placeholder="Пароль">
+        <button onclick="login()">Войти</button>
+        <button onclick="register()">Зарегистрироваться</button>
+    </div>
+
+    <div id="main" style="display:none;">
+        <header>
+            <h2 id="chat-name">Выберите чат</h2>
+            <div id="online-users"></div>
+        </header>
+
+        <div id="mobile-menu-toggle" onclick="toggleChatList()">☰</div>
+
+        <div id="chat-list-container">
+            <div id="chat-list">
+                <h3>Ваши чаты:</h3>
+                <ul id="chats"></ul>
+                <button onclick="createChat()">Создать чат</button>
+            </div>
+        </div>
+
+        <div id="chat-area">
+            <div id="messages"></div>
+            <div id="input-area">
+                <input type="text" id="message-input" placeholder="Введите сообщение...">
+                <button onclick="sendMessage()">Отправить</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
