@@ -9,6 +9,11 @@ services:
       - postgres_data:/var/lib/postgresql/data
     ports:
       - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U user -d messenger"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
 
   redis:
     image: redis:7-alpine
@@ -22,22 +27,28 @@ services:
       ENCRYPTION_KEY: hjZ6EeTxce9pfGh8ibiKitSbfaGCNvHeBAKDoCHjz6Q=
       REDIS_URL: redis://redis:6379
     depends_on:
-      - db
-      - redis
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
     volumes:
       - ./backend:/app
+    restart: on-failure
 
-  backend2:
-    build: ./backend
-    environment:
-      DATABASE_URL: postgresql://user:password@db:5432/messenger
-      REDIS_URL: redis://redis:6379
-      ENCRYPTION_KEY: hjZ6EeTxce9pfGh8ibiKitSbfaGCNvHeBAKDoCHjz6Q=
-    depends_on:
-      - db
-      - redis
-    volumes:
-      - ./backend:/app
+#  backend2:
+#    build: ./backend
+#    environment:
+#      DATABASE_URL: postgresql://user:password@db:5432/messenger
+#      REDIS_URL: redis://redis:6379
+#      ENCRYPTION_KEY: hjZ6EeTxce9pfGh8ibiKitSbfaGCNvHeBAKDoCHjz6Q=
+#    depends_on:
+#      db:
+#        condition: service_healthy
+#      redis:
+#        condition: service_started
+#    volumes:
+#      - ./backend:/app
+#    restart: on-failure
 
   nginx:
     build:
@@ -47,7 +58,7 @@ services:
       - "80:80"
     depends_on:
       - backend1
-      - backend2
+#      - backend2
 
   # Мониторинг
 #  prometheus:
