@@ -6,15 +6,25 @@ let ws = null;
 const API_BASE_URL = '/api';
 
 function login() {
-    const username = document.getElementById('username').value;
+    const username = document.getElementById('username').value.trim();
     const password = document.getElementById('password').value;
+
+    if (!username || !password) {
+        alert('Имя пользователя и пароль не могут быть пустыми.');
+        return;
+    }
 
     fetch(`${API_BASE_URL}/token`, {
         method: 'POST',
         headers: {'Content-Type': 'application/x-www-form-urlencoded'},
         body: `username=${encodeURIComponent(username)}&password=${encodeURIComponent(password)}`
     })
-    .then(response => response.json())
+    .then(response => {
+        if (!response.ok) {
+            throw new Error('Неверное имя пользователя или пароль.');
+        }
+        return response.json();
+    })
     .then(data => {
         token = data.access_token;
         document.getElementById('auth').style.display = 'none';
@@ -22,21 +32,35 @@ function login() {
         loadChats();
         loadOnlineUsers();
     })
-    .catch(err => alert('Ошибка входа: ' + err));
+    .catch(err => alert('Ошибка входа: ' + err.message));
 }
 
 function register() {
-    const username = document.getElementById('username').value;
+    const username = document.getElementById('username').value.trim();
     const password = document.getElementById('password').value;
+
+    if (!username || !password) {
+        alert('Имя пользователя и пароль не могут быть пустыми.');
+        return;
+    }
 
     fetch(`${API_BASE_URL}/register/`, {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
         body: JSON.stringify({username, password})
     })
-    .then(response => response.json())
-    .then(data => alert('Пользователь зарегистрирован'))
-    .catch(err => alert('Ошибка регистрации: ' + err));
+    .then(response => {
+        if (!response.ok) {
+            throw new Error('Ошибка регистрации. Возможно, пользователь уже существует.');
+        }
+        return response.json();
+    })
+    .then(data => {
+        alert('Пользователь успешно зарегистрирован. Теперь вы можете войти.');
+        document.getElementById('username').value = '';
+        document.getElementById('password').value = '';
+    })
+    .catch(err => alert('Ошибка регистрации: ' + err.message));
 }
 
 function loadChats() {

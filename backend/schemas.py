@@ -1,10 +1,22 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, validator
 from typing import Optional, List
 from datetime import datetime
 
 class UserCreate(BaseModel):
     username: str
     password: str
+
+    @validator("username")
+    def validate_username(cls, value):
+        if len(value) < 3:
+            raise ValueError("Имя пользователя должно быть не менее 3 символов.")
+        return value
+
+    @validator("password")
+    def validate_password(cls, value):
+        if len(value) < 6:
+            raise ValueError("Пароль должен быть не менее 6 символов.")
+        return value
 
 class User(BaseModel):
     id: int

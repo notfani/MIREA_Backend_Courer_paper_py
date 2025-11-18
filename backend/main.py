@@ -17,7 +17,7 @@ from sqlalchemy.exc import IntegrityError
 REQUEST_COUNT = Counter('http_requests_total', 'Total HTTP requests', ['method', 'endpoint'])
 REQUEST_TIME = Histogram('http_request_duration_seconds', 'Duration of HTTP requests', ['method', 'endpoint'])
 
-app = FastAPI()
+app = FastAPI(openapi_prefix="/api")
 
 # Подключаем Prometheus middleware
 metrics_app = make_asgi_app()
@@ -41,8 +41,11 @@ except IntegrityError:
 
 @app.post("/register/")
 def register_user(user: UserCreate, db: Session = Depends(get_db)):
-    db_user = create_user(db, user)
-    return {"message": "User registered", "user_id": db_user.id}
+    try:
+        db_user = create_user(db, user)
+        return {"message": "User registered", "user_id": db_user.id}
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
 @app.post("/token")
 def login(user: UserCreate, db: Session = Depends(get_db)):

@@ -3,18 +3,33 @@ from models import User, Chat, Message
 from schemas import UserCreate, ChatCreate, MessageCreate
 from passlib.context import CryptContext
 from encryption import encrypt_message
+import logging
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+logger = logging.getLogger("crud")
+logging.basicConfig(level=logging.DEBUG)
 
 def get_user_by_username(db: Session, username: str):
     return db.query(User).filter(User.username == username).first()
 
 def create_user(db: Session, user: UserCreate):
+    logger.debug(f"Попытка создания пользователя: {user.username}")
+    if not user.password:
+        logger.error("Пароль не может быть пустым.")
+        raise ValueError("Пароль не может быть пустым.")
+
+    existing_user = db.query(User).filter(User.username == user.username).first()
+    if existing_user:
+        logger.error("Пользователь с таким именем уже существует.")
+        raise ValueError("Пользователь с таким именем уже существует.")
+
     hashed_password = pwd_context.hash(user.password)
+    logger.debug("Пароль успешно захеширован.")
     db_user = User(username=user.username, hashed_password=hashed_password)
     db.add(db_user)
     db.commit()
     db.refresh(db_user)
+    logger.debug(f"Пользователь {user.username} успешно создан с ID {db_user.id}.")
     return db_user
 
 def create_chat(db: Session, chat: ChatCreate, creator_id: int):
