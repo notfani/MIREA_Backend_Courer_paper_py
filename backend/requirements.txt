@@ -10,3 +10,4 @@ websockets
 alembic
 cryptography
 prometheus-client
+python-dotenv

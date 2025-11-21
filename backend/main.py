@@ -12,6 +12,10 @@ from redis_client import get_online_users, publish_notification
 from prometheus_client import make_asgi_app, Counter, Histogram
 import time
 from sqlalchemy.exc import IntegrityError
+from dotenv import load_dotenv
+
+# Загружаем переменные окружения из .env файла
+load_dotenv()
 
 # Метрики
 REQUEST_COUNT = Counter('http_requests_total', 'Total HTTP requests', ['method', 'endpoint'])

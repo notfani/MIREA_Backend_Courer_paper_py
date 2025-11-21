@@ -1,7 +1,8 @@
 import redis
 import json
+import os
 
-redis_client = redis.Redis(host='redis', port=6379, db=0, decode_responses=True)
+redis_client = redis.from_url(os.getenv("REDIS_URL", "redis://redis:6379"))
 
 def add_online_user(user_id: int, username: str):
     redis_client.sadd("online_users", user_id)

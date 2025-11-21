@@ -2,9 +2,9 @@ services:
   db:
     image: postgres:13
     environment:
-      POSTGRES_DB: messenger
-      POSTGRES_USER: user
-      POSTGRES_PASSWORD: password
+      - POSTGRES_DB=${POSTGRES_DB}
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
     volumes:
       - postgres_data:/var/lib/postgresql/data
     ports:
@@ -18,26 +18,28 @@ services:
   backend1:
     build: ./backend
     environment:
-      DATABASE_URL: postgresql://user:password@db:5432/messenger
-      ENCRYPTION_KEY: hjZ6EeTxce9pfGh8ibiKitSbfaGCNvHeBAKDoCHjz6Q=
-      REDIS_URL: redis://redis:6379
+      - DATABASE_URL=${DATABASE_URL}
+      - ENCRYPTION_KEY=${ENCRYPTION_KEY}
+      - SECRET_KEY=${SECRET_KEY}
+      - REDIS_URL=${REDIS_URL}
     depends_on:
       - db
       - redis
     volumes:
       - ./backend:/app
 
-  backend2:
-    build: ./backend
-    environment:
-      DATABASE_URL: postgresql://user:password@db:5432/messenger
-      REDIS_URL: redis://redis:6379
-      ENCRYPTION_KEY: hjZ6EeTxce9pfGh8ibiKitSbfaGCNvHeBAKDoCHjz6Q=
-    depends_on:
-      - db
-      - redis
-    volumes:
-      - ./backend:/app
+#  backend2:
+#    build: ./backend
+#    environment:
+#      - DATABASE_URL=${DATABASE_URL}
+#      - ENCRYPTION_KEY=${ENCRYPTION_KEY}
+#      - SECRET_KEY=${SECRET_KEY}
+#      - REDIS_URL=${REDIS_URL}
+#    depends_on:
+#      - db
+#      - redis
+#    volumes:
+#      - ./backend:/app
 
   nginx:
     build:
@@ -47,7 +49,7 @@ services:
       - "80:80"
     depends_on:
       - backend1
-      - backend2
+#      - backend2
 
   # Мониторинг
 #  prometheus:
@@ -64,10 +66,10 @@ services:
 #
 #  grafana:
 #    image: grafana/grafana
+#    environment:
+#      - GF_SECURITY_ADMIN_PASSWORD=${GF_SECURITY_ADMIN_PASSWORD}
 #    ports:
 #      - "3000:3000"
-#    environment:
-#      - GF_SECURITY_ADMIN_PASSWORD=admin
 #    volumes:
 #      - grafana-storage:/var/lib/grafana
 
@@ -78,17 +80,17 @@ services:
 
   redis-exporter:
     image: oliver006/redis_exporter
+    environment:
+      - REDIS_ADDR=${REDIS_ADDR}
     ports:
       - "9121:9121"
-    environment:
-      REDIS_ADDR: redis://redis:6379
 
   postgres-exporter:
     image: wrouesnel/postgres_exporter
+    environment:
+      - DATA_SOURCE_NAME=${DATA_SOURCE_NAME}
     ports:
       - "9187:9187"
-    environment:
-      DATA_SOURCE_NAME: postgresql://user:password@db:5432/messenger?sslmode=disable
 
 volumes:
   postgres_data:
