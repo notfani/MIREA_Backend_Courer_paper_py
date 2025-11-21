@@ -23,17 +23,43 @@ def get_db():
         db.close()
 
 def authenticate_user(db: Session, username: str, password: str):
+    import logging
+    logging.info(f"Attempting to authenticate user: {username}")
+
     user = get_user_by_username(db, username)
     if not user:
+        logging.warning(f"User not found: {username}")
         return False
+
+    if not user.is_active:
+        logging.warning(f"User is not active: {username}")
+        return False
+
     if not verify_password(password, user.hashed_password):
+        logging.warning(f"Password verification failed for user: {username}")
         return False
+
+    logging.info(f"User authenticated successfully: {username}")
     return user
 
 def verify_password(plain_password, hashed_password):
     from passlib.context import CryptContext
-    pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-    return pwd_context.verify(plain_password, hashed_password)
+    pwd_context = CryptContext(
+        schemes=["bcrypt"],
+        deprecated="auto",
+        bcrypt__rounds=12,
+        bcrypt__ident="2b"
+    )
+
+    try:
+        return pwd_context.verify(plain_password, hashed_password)
+    except Exception as e:
+        # Пробуем прямую проверку через bcrypt
+        try:
+            import bcrypt
+            return bcrypt.checkpw(plain_password.encode('utf-8'), hashed_password.encode('utf-8'))
+        except:
+            return False
 
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
     to_encode = data.copy()

@@ -1,4 +1,6 @@
-from fastapi import FastAPI, Depends, HTTPException, WebSocket
+from fastapi import FastAPI, Depends, HTTPException, WebSocket, status, Request
+from fastapi.exceptions import RequestValidationError
+from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 from database import SessionLocal, engine
 from models import Base
@@ -13,6 +15,7 @@ from prometheus_client import make_asgi_app, Counter, Histogram
 import time
 from sqlalchemy.exc import IntegrityError
 from dotenv import load_dotenv
+from fastapi.security import OAuth2PasswordRequestForm
 
 # Загружаем переменные окружения из .env файла
 load_dotenv()
@@ -21,7 +24,39 @@ load_dotenv()
 REQUEST_COUNT = Counter('http_requests_total', 'Total HTTP requests', ['method', 'endpoint'])
 REQUEST_TIME = Histogram('http_request_duration_seconds', 'Duration of HTTP requests', ['method', 'endpoint'])
 
-app = FastAPI()
+app = FastAPI(root_path="/api")
+
+# Обработчик ошибок валидации
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    errors = exc.errors()
+    # Извлекаем первую ошибку для более понятного сообщения
+    if errors:
+        first_error = errors[0]
+        field = first_error.get('loc', ['unknown'])[-1]
+        msg = first_error.get('msg', 'Validation error')
+
+        # Формируем понятное сообщение
+        if 'min_length' in msg.lower():
+            return JSONResponse(
+                status_code=422,
+                content={"detail": f"{field} слишком короткий"}
+            )
+        elif 'max_length' in msg.lower():
+            return JSONResponse(
+                status_code=422,
+                content={"detail": f"{field} слишком длинный"}
+            )
+        else:
+            return JSONResponse(
+                status_code=422,
+                content={"detail": msg}
+            )
+
+    return JSONResponse(
+        status_code=422,
+        content={"detail": "Ошибка валидации данных"}
+    )
 
 # Подключаем Prometheus middleware
 metrics_app = make_asgi_app()
@@ -38,22 +73,36 @@ async def add_prometheus_metrics(request, call_next):
 
 # Создание таблиц с обработкой race condition
 try:
-    Base.metadata.create_all(bind=engine)
+    Base.metadata.create_all(bind=engine, checkfirst=True)
 except IntegrityError:
     # Таблицы уже созданы другим инстансом
     pass
 
 @app.post("/register/")
 def register_user(user: UserCreate, db: Session = Depends(get_db)):
-    db_user = create_user(db, user)
+    try:
+        db_user = create_user(db, user)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
     return {"message": "User registered", "user_id": db_user.id}
 
 @app.post("/token")
-def login(user: UserCreate, db: Session = Depends(get_db)):
-    user_db = authenticate_user(db, user.username, user.password)
+def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
+    import logging
+    logging.info(f"Login attempt for user: {form_data.username}")
+
+    user_db = authenticate_user(db, form_data.username, form_data.password)
     if not user_db:
-        raise HTTPException(status_code=401, detail="Invalid credentials")
-    return {"access_token": create_access_token(data={"sub": user_db.username}), "token_type": "bearer"}
+        logging.warning(f"Failed login attempt for user: {form_data.username}")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Incorrect username or password",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    access_token = create_access_token(data={"sub": user_db.username})
+    logging.info(f"User logged in successfully: {form_data.username}")
+    return {"access_token": access_token, "token_type": "bearer"}
 
 @app.post("/chats/")
 def create_new_chat(chat: ChatCreate, current_user = Depends(get_current_user), db: Session = Depends(get_db)):

@@ -3,18 +3,65 @@ from models import User, Chat, Message
 from schemas import UserCreate, ChatCreate, MessageCreate
 from passlib.context import CryptContext
 from encryption import encrypt_message
+import logging
 
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+# Настраиваем контекст паролей с явными параметрами
+pwd_context = CryptContext(
+    schemes=["bcrypt"],
+    deprecated="auto",
+    bcrypt__rounds=12,
+    bcrypt__ident="2b"
+)
+
+logger = logging.getLogger(__name__)
 
 def get_user_by_username(db: Session, username: str):
     return db.query(User).filter(User.username == username).first()
 
 def create_user(db: Session, user: UserCreate):
-    hashed_password = pwd_context.hash(user.password)
+    logger.info(f"Attempting to create user: {user.username}")
+    logger.info(f"Password length: {len(user.password)} chars, {len(user.password.encode('utf-8'))} bytes")
+
+    # Проверяем существование пользователя
+    existing_user = get_user_by_username(db, user.username)
+    if existing_user:
+        logger.warning(f"User already exists: {user.username}")
+        raise ValueError("User already exists")
+
+    # Проверяем длину пароля
+    password_bytes = user.password.encode('utf-8')
+    if len(password_bytes) > 72:
+        logger.error(f"Password too long: {len(password_bytes)} bytes")
+        raise ValueError("Password is too long (max 72 bytes)")
+
+    # Если пароль слишком длинный для bcrypt, обрезаем его
+    password_to_hash = user.password
+    if len(password_bytes) > 72:
+        password_to_hash = user.password[:72]
+        logger.warning(f"Password truncated to 72 bytes")
+
+    logger.info("Hashing password...")
+    try:
+        hashed_password = pwd_context.hash(password_to_hash)
+        logger.info("Password hashed successfully")
+    except Exception as e:
+        logger.error(f"Error hashing password: {e}")
+        # Пробуем альтернативный подход
+        try:
+            import bcrypt
+            salt = bcrypt.gensalt()
+            hashed_password = bcrypt.hashpw(password_to_hash.encode('utf-8'), salt).decode('utf-8')
+            logger.info("Password hashed using direct bcrypt")
+        except Exception as e2:
+            logger.error(f"Alternative hashing also failed: {e2}")
+            raise ValueError(f"Cannot hash password: {str(e)}")
+
+    logger.info("Creating user in database...")
     db_user = User(username=user.username, hashed_password=hashed_password)
     db.add(db_user)
     db.commit()
     db.refresh(db_user)
+    logger.info(f"User created successfully with id: {db_user.id}")
     return db_user
 
 def create_chat(db: Session, chat: ChatCreate, creator_id: int):
