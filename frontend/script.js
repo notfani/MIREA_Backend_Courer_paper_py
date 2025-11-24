@@ -180,6 +180,7 @@ function loadChats() {
 }
 
 function openChat(chatId, chatName) {
+    console.log(`Opening chat: id=${chatId}, name=${chatName}`);
     currentChatId = chatId;
     document.getElementById('chat-name').textContent = chatName;
     loadMessages(chatId);
@@ -211,7 +212,11 @@ function addMessageToDOM(msg) {
 }
 
 function sendMessage() {
-    if (!currentChatId) return;
+    console.log(`Attempting to send message. currentChatId: ${currentChatId}`);
+    if (!currentChatId) {
+        alert("Пожалуйста, сначала выберите чат из списка слева.");
+        return;
+    }
     const input = document.getElementById('message-input');
     const content = input.value.trim();
     if (!content) return;
@@ -230,16 +235,39 @@ function sendMessage() {
 }
 
 function connectWebSocket(chatId) {
+    console.log("Attempting to connect WebSocket. Token:", token);
+    if (!token) {
+        alert("Ошибка: токен авторизации отсутствует. Попробуйте войти снова.");
+        return;
+    }
     if (ws) ws.close();
     // WebSocket через nginx на /ws
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const wsUrl = `${protocol}//${window.location.host}/ws/${chatId}`;
+    const wsUrl = `${protocol}//${window.location.host}/ws/${chatId}?token=${token}`;
+    console.log("Connecting to WebSocket URL:", wsUrl);
 
     ws = new WebSocket(wsUrl);
 
+    ws.onopen = function(event) {
+        console.log("WebSocket connection opened:", event);
+    };
+
     ws.onmessage = function(event) {
-        const data = JSON.parse(event.data);
-        addMessageToDOM(data);
+        console.log("WebSocket message received:", event.data);
+        try {
+            const data = JSON.parse(event.data);
+            addMessageToDOM(data);
+        } catch (e) {
+            console.error("Error parsing WebSocket message or adding to DOM:", e, event.data);
+        }
+    };
+
+    ws.onclose = function(event) {
+        console.log("WebSocket connection closed:", event);
+    };
+    
+    ws.onerror = function(event) {
+        console.error("WebSocket error:", event);
     };
 }
 

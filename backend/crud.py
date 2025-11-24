@@ -1,4 +1,4 @@
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from models import User, Chat, Message
 from schemas import UserCreate, ChatCreate, MessageCreate
 from passlib.context import CryptContext
@@ -100,7 +100,8 @@ def create_message(db: Session, message: MessageCreate, user_id: int):
     return db_message
 
 def get_messages(db: Session, chat_id: int, skip: int = 0, limit: int = 60):
-    messages = db.query(Message).filter(Message.chat_id == chat_id).offset(skip).limit(limit).all()
+    messages = db.query(Message).options(joinedload(Message.user)).filter(Message.chat_id == chat_id).order_by(Message.timestamp.desc()).offset(skip).limit(limit).all()
+    messages.reverse()  # Отсортировать от старых к новым для отображения
     from encryption import decrypt_message
     for msg in messages:
         msg.content = decrypt_message(msg.content)
