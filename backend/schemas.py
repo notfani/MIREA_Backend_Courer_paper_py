@@ -23,7 +23,7 @@ class User(BaseModel):
 class ChatCreate(BaseModel):
     name: str
     is_group: bool = False
-    members: List[int]
+    members: List[int] = []
 
 class Chat(BaseModel):
     id: int

@@ -1,13 +1,70 @@
 <!DOCTYPE html>
-<html>
+<html lang="ru">
 <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Ошибка сервера</title>
     <style>
-        body { font-family: Arial, sans-serif; text-align: center; padding: 50px; }
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            text-align: center;
+            padding: 20px;
+        }
+        .container {
+            max-width: 600px;
+        }
+        h1 {
+            font-size: 6rem;
+            margin-bottom: 1rem;
+            font-weight: 700;
+            text-shadow: 0 4px 8px rgba(0,0,0,0.2);
+        }
+        h2 {
+            font-size: 2rem;
+            margin-bottom: 1rem;
+            font-weight: 600;
+        }
+        p {
+            font-size: 1.1rem;
+            opacity: 0.9;
+            line-height: 1.6;
+        }
+        a {
+            display: inline-block;
+            margin-top: 2rem;
+            padding: 15px 30px;
+            background: white;
+            color: #667eea;
+            text-decoration: none;
+            border-radius: 25px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+        a:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0,0,0,0.25);
+        }
     </style>
 </head>
 <body>
-    <h1>50x — Ошибка сервера</h1>
-    <p>Что-то пошло не так. Попробуйте позже.</p>
+    <div class="container">
+        <h1>50x</h1>
+        <h2>Ошибка сервера</h2>
+        <p>К сожалению, произошла ошибка на сервере.<br>Пожалуйста, попробуйте позже.</p>
+        <a href="/">На главную</a>
+    </div>
 </body>
 </html>
+

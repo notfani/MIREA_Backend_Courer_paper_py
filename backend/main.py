@@ -10,12 +10,14 @@ from crud import create_user, create_message, get_messages, create_chat, get_use
 from auth import get_current_user, authenticate_user, create_access_token, get_db, get_current_user_ws
 from websocket import handle_websocket, manager
 from redis_client import get_online_users
+import json
 
 from prometheus_client import make_asgi_app, Counter, Histogram
 import time
 from sqlalchemy.exc import IntegrityError
 from dotenv import load_dotenv
 from fastapi.security import OAuth2PasswordRequestForm
+from starlette.websockets import WebSocketDisconnect
 
 # Загружаем переменные окружения из .env файла
 load_dotenv()
@@ -87,13 +89,17 @@ def register_user(user: UserCreate, db: Session = Depends(get_db)):
     return {"message": "User registered", "user_id": db_user.id}
 
 @app.post("/token")
-def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
+async def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
     import logging
-    logging.info(f"Login attempt for user: {form_data.username}")
+    logging.basicConfig(level=logging.INFO)
+    logger = logging.getLogger(__name__)
+
+    logger.info(f"Login attempt for user: {form_data.username}")
+    logger.info(f"Form data received - username: {form_data.username}, password length: {len(form_data.password) if form_data.password else 0}")
 
     user_db = authenticate_user(db, form_data.username, form_data.password)
     if not user_db:
-        logging.warning(f"Failed login attempt for user: {form_data.username}")
+        logger.warning(f"Failed login attempt for user: {form_data.username}")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Incorrect username or password",
@@ -101,7 +107,7 @@ def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depend
         )
 
     access_token = create_access_token(data={"sub": user_db.username})
-    logging.info(f"User logged in successfully: {form_data.username}")
+    logger.info(f"User logged in successfully: {form_data.username}")
     return {"access_token": access_token, "token_type": "bearer"}
 
 @app.post("/chats/")
@@ -152,6 +158,67 @@ def add_user_to_group(chat_id: int, user_id: int, current_user = Depends(get_cur
     add_user_to_chat(db, chat_id, user_id)
     return {"message": f"User {user_to_add.username} added to chat {chat.name}"}
 
+@app.get("/chats/{chat_id}/members")
+async def get_chat_members(chat_id: int, current_user: models.User = Depends(get_current_user), db: Session = Depends(get_db)):
+    """Получить список участников чата"""
+    chat = db.query(models.Chat).filter(models.Chat.id == chat_id).first()
+    if not chat:
+        raise HTTPException(status_code=404, detail="Chat not found")
+
+    # Проверяем, что текущий пользователь является участником чата
+    if current_user not in chat.members:
+        raise HTTPException(status_code=403, detail="You are not a member of this chat")
+
+    return [{"id": user.id, "username": user.username} for user in chat.members]
+
+@app.post("/chats/{chat_id}/members")
+async def add_chat_member(chat_id: int, data: dict, current_user: models.User = Depends(get_current_user), db: Session = Depends(get_db)):
+    """Добавить участника в чат по username"""
+    chat = db.query(models.Chat).filter(models.Chat.id == chat_id).first()
+    if not chat:
+        raise HTTPException(status_code=404, detail="Chat not found")
+
+    # Проверяем, что текущий пользователь является участником чата
+    if current_user not in chat.members:
+        raise HTTPException(status_code=403, detail="You are not a member of this chat")
+
+    username = data.get("username")
+    user_to_add = db.query(models.User).filter(models.User.username == username).first()
+    if not user_to_add:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    # Проверяем, что пользователь еще не в чате
+    if user_to_add in chat.members:
+        raise HTTPException(status_code=400, detail="User already in chat")
+
+    add_user_to_chat(db, chat_id, user_to_add.id)
+    return {"message": f"User {user_to_add.username} added to chat {chat.name}"}
+
+@app.delete("/chats/{chat_id}/members/{username}")
+async def remove_chat_member(chat_id: int, username: str, current_user: models.User = Depends(get_current_user), db: Session = Depends(get_db)):
+    """Удалить участника из чата"""
+    chat = db.query(models.Chat).filter(models.Chat.id == chat_id).first()
+    if not chat:
+        raise HTTPException(status_code=404, detail="Chat not found")
+
+    # Проверяем, что текущий пользователь является участником чата
+    if current_user not in chat.members:
+        raise HTTPException(status_code=403, detail="You are not a member of this chat")
+
+    user_to_remove = db.query(models.User).filter(models.User.username == username).first()
+    if not user_to_remove:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    # Проверяем, что пользователь в чате
+    if user_to_remove not in chat.members:
+        raise HTTPException(status_code=400, detail="User is not in this chat")
+
+    # Удаляем пользователя из чата
+    chat.members.remove(user_to_remove)
+    db.commit()
+
+    return {"message": f"User {username} removed from chat {chat.name}"}
+
 @app.post("/messages/")
 async def send_message(msg: MessageCreate, current_user: models.User = Depends(get_current_user), db: Session = Depends(get_db)):
     # Сохраняем сообщение в базу данных
@@ -175,6 +242,21 @@ async def send_message(msg: MessageCreate, current_user: models.User = Depends(g
     
     return message
 
+@app.get("/chats/{chat_id}/messages")
+def get_chat_messages(chat_id: int, skip: int = 0, limit: int = 60, current_user: models.User = Depends(get_current_user), db: Session = Depends(get_db)):
+    """Получить сообщения чата"""
+    # Проверяем, что чат существует
+    chat = db.query(models.Chat).filter(models.Chat.id == chat_id).first()
+    if not chat:
+        raise HTTPException(status_code=404, detail="Chat not found")
+
+    # Проверяем, что пользователь является участником чата
+    if current_user not in chat.members:
+        raise HTTPException(status_code=403, detail="You are not a member of this chat")
+
+    messages = get_messages(db, chat_id, skip=skip, limit=limit)
+    return messages
+
 @app.get("/messages/{chat_id}")
 def read_messages(chat_id: int, skip: int = 0, limit: int = 60, db: Session = Depends(get_db)):
     messages = get_messages(db, chat_id, skip=skip, limit=limit)
@@ -183,6 +265,53 @@ def read_messages(chat_id: int, skip: int = 0, limit: int = 60, db: Session = De
 @app.get("/online-users/")
 def online_users():
     return get_online_users()
+
+@app.websocket("/ws")
+async def websocket_general_endpoint(websocket: WebSocket, token: str, db: Session = Depends(get_db)):
+    """Общий WebSocket endpoint для подключения пользователя"""
+    try:
+        current_user = await get_current_user_ws(token=token, db=db)
+        await websocket.accept()
+
+        # Добавляем пользователя в онлайн
+        from redis_client import add_online_user
+        add_online_user(current_user.id, current_user.username)
+
+        # Держим соединение открытым и обрабатываем сообщения
+        try:
+            while True:
+                data = await websocket.receive_text()
+                message_data = json.loads(data)
+
+                # Обрабатываем сообщение в зависимости от типа
+                if message_data.get("type") == "chat_message":
+                    chat_id = str(message_data.get("chat_id"))
+                    content = message_data.get("content")
+
+                    # Создаем объект MessageCreate для сохранения
+                    msg = MessageCreate(chat_id=int(chat_id), content=content)
+
+                    # Сохраняем сообщение в БД
+                    db_message = create_message(db=db, message=msg, user_id=current_user.id)
+
+                    # Отправляем сообщение всем участникам чата
+                    broadcast_data = {
+                        "type": "chat_message",
+                        "chat_id": int(chat_id),
+                        "username": current_user.username,
+                        "content": content,
+                        "timestamp": db_message.timestamp.isoformat()
+                    }
+                    await manager.broadcast_to_chat(json.dumps(broadcast_data), chat_id)
+
+        except WebSocketDisconnect:
+            pass
+        finally:
+            from redis_client import remove_online_user
+            remove_online_user(current_user.id)
+
+    except HTTPException:
+        await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
 
 @app.websocket("/ws/{chat_id}")
 async def websocket_endpoint(websocket: WebSocket, chat_id: str, token: str, db: Session = Depends(get_db)):

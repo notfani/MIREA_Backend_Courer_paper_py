@@ -1,1 +1,7 @@
+README.md
+.git
+.gitignore
+script.js
 node_modules
+*.md
+

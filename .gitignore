@@ -3,30 +3,44 @@
 
 # Python
 __pycache__/
-*.pyc
-*.pyo
-*.pyd
+*.py[cod]
+*$py.class
+*.so
 .Python
-env/
 venv/
-.venv/
-pip-log.txt
-pip-delete-this-directory.txt
-.tox/
-.coverage
-.coverage.*
+env/
+.venv
+ENV/
+*.egg-info/
 .pytest_cache/
+.coverage
 
 # IDE
-.idea/
 .vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Docker
+*.log
 
 # OS
 .DS_Store
 Thumbs.db
 
-# Logs
-*.log
-
 # Database
-postgres_data/
+*.db
+*.sqlite
+*.sqlite3
+
+# Frontend
+node_modules/
+dist/
+build/
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+
