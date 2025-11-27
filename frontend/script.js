@@ -1,9 +1,40 @@
-let token = null;
+let token = localStorage.getItem('auth_token') || null;
 let currentChatId = null;
 let ws = null;
 
 // API запросы идут через nginx на /api
 const API_BASE_URL = '/api';
+
+// Проверка токена при загрузке страницы
+window.addEventListener('DOMContentLoaded', function() {
+    if (token) {
+        // Проверяем валидность токена
+        checkTokenAndLogin();
+    }
+});
+
+function checkTokenAndLogin() {
+    fetch(`${API_BASE_URL}/chats/`, {
+        headers: {'Authorization': `Bearer ${token}`}
+    })
+    .then(response => {
+        if (response.ok) {
+            // Токен валиден, входим
+            document.getElementById('auth').style.display = 'none';
+            document.getElementById('main').style.display = 'flex';
+            loadChats();
+            loadOnlineUsers();
+        } else {
+            // Токен невалиден, удаляем
+            localStorage.removeItem('auth_token');
+            token = null;
+        }
+    })
+    .catch(() => {
+        localStorage.removeItem('auth_token');
+        token = null;
+    });
+}
 
 function login() {
     const username = document.getElementById('username').value;
@@ -58,7 +89,8 @@ function login() {
 
         // Сохраняем токен
         token = data.access_token;
-        console.log('Token saved, switching to main interface');
+        localStorage.setItem('auth_token', token);
+        console.log('Token saved to localStorage, switching to main interface');
 
         // Переключаем интерфейс
         document.getElementById('auth').style.display = 'none';
@@ -76,6 +108,7 @@ function login() {
 
         // Гарантируем сброс состояния при ошибке
         token = null;
+        localStorage.removeItem('auth_token');
         document.getElementById('auth').style.display = 'block';
         document.getElementById('main').style.display = 'none';
         console.log('Login failed, staying on auth screen');
@@ -128,7 +161,10 @@ function register() {
     })
     .then(data => {
         console.log('Registration successful:', data);
-        alert('Пользователь успешно зарегистрирован! Теперь войдите в систему.');
+        alert('Пользователь успешно зарегистрирован! Выполняется вход...');
+
+        // Автоматически входим после регистрации
+        login();
     })
     .catch(err => {
         console.error('Registration error:', err);
@@ -173,10 +209,20 @@ function loadChats() {
         console.error('Ошибка загрузки чатов:', err);
         // Если токен невалиден, возвращаемся к экрану авторизации
         alert('Сессия истекла. Войдите снова.');
-        document.getElementById('auth').style.display = 'block';
-        document.getElementById('main').style.display = 'none';
-        token = null;
+        logout();
     });
+}
+
+function logout() {
+    token = null;
+    localStorage.removeItem('auth_token');
+    document.getElementById('auth').style.display = 'block';
+    document.getElementById('main').style.display = 'none';
+    if (ws) {
+        ws.close();
+        ws = null;
+    }
+    currentChatId = null;
 }
 
 function openChat(chatId, chatName) {

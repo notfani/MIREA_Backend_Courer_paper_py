@@ -3,6 +3,6 @@
   <component name="Black">
     <option name="sdkName" value="Python 3.10 (PythonProject1)" />
   </component>
-  <component name="KubernetesApiProvider"><![CDATA[{}]]></component>
-  <component name="ProjectRootManager" version="2" project-jdk-name="Python 3.10 (MIREA_Py_Courcer_paper)" project-jdk-type="Python SDK" />
+  <component name="KubernetesApiProvider">{}</component>
+  <component name="ProjectRootManager" version="2" project-jdk-name="Python 3.10 (MIREA_Backend_Courer_paper_py)" project-jdk-type="Python SDK" />
 </project>

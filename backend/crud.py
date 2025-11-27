@@ -18,6 +18,9 @@ logger = logging.getLogger(__name__)
 def get_user_by_username(db: Session, username: str):
     return db.query(User).filter(User.username == username).first()
 
+def get_user_by_id(db: Session, user_id: int):
+    return db.query(User).filter(User.id == user_id).first()
+
 def create_user(db: Session, user: UserCreate):
     logger.info(f"Attempting to create user: {user.username}")
     logger.info(f"Password length: {len(user.password)} chars, {len(user.password.encode('utf-8'))} bytes")
