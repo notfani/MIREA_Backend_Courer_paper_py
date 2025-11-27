@@ -1,5 +1,6 @@
 let token = localStorage.getItem('auth_token') || null;
 let currentChatId = null;
+let currentChat = null;  // Сохраняем информацию о текущем чате
 let ws = null;
 
 // API запросы идут через nginx на /api
@@ -23,7 +24,6 @@ function checkTokenAndLogin() {
             document.getElementById('auth').style.display = 'none';
             document.getElementById('main').style.display = 'flex';
             loadChats();
-            loadOnlineUsers();
         } else {
             // Токен невалиден, удаляем
             localStorage.removeItem('auth_token');
@@ -99,7 +99,6 @@ function login() {
         // Загружаем данные
         loadChats();
         loadOnlineUsers();
-
         console.log('Successful login complete');
     })
     .catch(err => {
@@ -228,6 +227,26 @@ function logout() {
 function openChat(chatId, chatName) {
     console.log(`Opening chat: id=${chatId}, name=${chatName}`);
     currentChatId = chatId;
+
+    // Загружаем информацию о чате
+    fetch(`${API_BASE_URL}/chats/${chatId}`, {
+        headers: {'Authorization': `Bearer ${token}`}
+    })
+    .then(response => response.json())
+    .then(chat => {
+        currentChat = chat;
+        // Показываем кнопку управления участниками только для групповых чатов
+        const manageMembersBtn = document.getElementById('manage-members-btn');
+        if (chat.is_group) {
+            manageMembersBtn.style.display = 'inline-block';
+        } else {
+            manageMembersBtn.style.display = 'none';
+        }
+    })
+    .catch(err => {
+        console.error('Ошибка загрузки информации о чате:', err);
+    });
+
     document.getElementById('chat-name').textContent = chatName;
     loadMessages(chatId);
     connectWebSocket(chatId);
@@ -334,22 +353,131 @@ function createChat() {
 
 function loadOnlineUsers() {
     fetch(`${API_BASE_URL}/online-users/`)
-    .then(response => {
-        if (!response.ok) {
-            throw new Error('Не удалось загрузить пользователей');
-        }
-        return response.json();
-    })
-    .then(users => {
-        const container = document.getElementById('online-users');
-        container.innerHTML = `<p>Онлайн: ${users.length} пользователей</p>`;
-    })
-    .catch(err => {
-        console.error('Ошибка загрузки онлайн пользователей:', err);
+    const container = document.getElementById('chat-list-container');
+    container.classList.toggle('open');
+}
+
+// Функции для управления участниками чата
+function openMembersModal() {
+    if (!currentChat) {
+        alert('Пожалуйста, сначала выберите чат');
+        return;
+    }
+
+    const modal = document.getElementById('members-modal');
+    modal.style.display = 'block';
+
+    // Отображаем текущих участников
+    displayCurrentMembers();
+
+    // Загружаем список доступных пользователей
+    loadAvailableUsers();
+}
+
+function closeMembersModal() {
+    const modal = document.getElementById('members-modal');
+    modal.style.display = 'none';
+}
+
+function displayCurrentMembers() {
+    const membersList = document.getElementById('members-list');
+    membersList.innerHTML = '';
+
+    if (!currentChat || !currentChat.members) {
+        membersList.innerHTML = '<p>Нет участников</p>';
+        return;
+    }
+
+    currentChat.members.forEach(member => {
+        const div = document.createElement('div');
+        div.className = 'user-item';
+        div.innerHTML = `
+            <span>${member.username}</span>
+            <span class="member-badge">Участник</span>
+        `;
+        membersList.appendChild(div);
     });
 }
 
-function toggleChatList() {
-    const container = document.getElementById('chat-list-container');
-    container.classList.toggle('open');
+function loadAvailableUsers() {
+    fetch(`${API_BASE_URL}/users/`, {
+        headers: {'Authorization': `Bearer ${token}`}
+    })
+    .then(response => response.json())
+    .then(users => {
+        const availableUsersList = document.getElementById('available-users-list');
+        availableUsersList.innerHTML = '';
+
+        // Получаем ID текущих участников
+        const currentMemberIds = currentChat.members.map(m => m.id);
+
+        // Фильтруем пользователей, которые еще не в чате
+        const availableUsers = users.filter(user => !currentMemberIds.includes(user.id));
+
+        if (availableUsers.length === 0) {
+            availableUsersList.innerHTML = '<p>Все пользователи уже в чате</p>';
+            return;
+        }
+
+        availableUsers.forEach(user => {
+            const div = document.createElement('div');
+            div.className = 'user-item';
+            div.innerHTML = `
+                <span>${user.username}</span>
+                <button onclick="addUserToChat(${user.id}, '${user.username}')">Добавить</button>
+            `;
+            availableUsersList.appendChild(div);
+        });
+    })
+    .catch(err => {
+        console.error('Ошибка загрузки пользователей:', err);
+        alert('Не удалось загрузить список пользователей');
+    });
+}
+
+function addUserToChat(userId, username) {
+    if (!currentChatId) {
+        alert('Чат не выбран');
+        return;
+    }
+
+    fetch(`${API_BASE_URL}/chats/${currentChatId}/add-user/${userId}`, {
+        method: 'POST',
+        headers: {'Authorization': `Bearer ${token}`}
+    })
+    .then(response => {
+        if (!response.ok) {
+            return response.json().then(data => {
+                throw new Error(data.detail || 'Ошибка добавления пользователя');
+            });
+        }
+        return response.json();
+    })
+    .then(data => {
+        alert(`Пользователь ${username} добавлен в чат!`);
+
+        // Обновляем информацию о текущем чате
+        return fetch(`${API_BASE_URL}/chats/${currentChatId}`, {
+            headers: {'Authorization': `Bearer ${token}`}
+        });
+    })
+    .then(response => response.json())
+    .then(chat => {
+        currentChat = chat;
+        // Обновляем отображение
+        displayCurrentMembers();
+        loadAvailableUsers();
+    })
+    .catch(err => {
+        console.error('Ошибка добавления пользователя:', err);
+        alert(err.message);
+    });
+}
+
+// Закрыть модальное окно при клике вне его
+window.onclick = function(event) {
+    const modal = document.getElementById('members-modal');
+    if (event.target === modal) {
+        closeMembersModal();
+    }
 }

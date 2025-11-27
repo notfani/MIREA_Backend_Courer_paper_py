@@ -18,7 +18,7 @@
     <div id="main" style="display:none;">
         <header>
             <h2 id="chat-name">Выберите чат</h2>
-            <div id="online-users"></div>
+            <button id="manage-members-btn" onclick="openMembersModal()" style="display:none;">👥 Участники</button>
             <button onclick="logout()" style="margin-left: auto;">Выход</button>
         </header>
 
@@ -41,6 +41,22 @@
         </div>
     </div>
 
-    <script src="script.js?v=10"></script>
+    <!-- Модальное окно для управления участниками -->
+    <div id="members-modal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeMembersModal()">&times;</span>
+            <h3>Управление участниками</h3>
+            <div id="current-members">
+                <h4>Текущие участники:</h4>
+                <div id="members-list" class="user-list"></div>
+            </div>
+            <div id="add-members">
+                <h4>Добавить участников:</h4>
+                <div id="available-users-list" class="user-list"></div>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js?v=12"></script>
 </body>
 </html>

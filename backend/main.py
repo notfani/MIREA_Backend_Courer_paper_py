@@ -114,10 +114,43 @@ def read_user_chats(current_user = Depends(get_current_user), db: Session = Depe
     chats = get_user_chats(db, current_user.id)
     return chats
 
+@app.get("/chats/{chat_id}")
+def get_chat_details(chat_id: int, current_user = Depends(get_current_user), db: Session = Depends(get_db)):
+    chat = db.query(models.Chat).filter(models.Chat.id == chat_id).first()
+    if not chat:
+        raise HTTPException(status_code=404, detail="Chat not found")
+    # Проверяем, что пользователь является участником чата
+    if current_user not in chat.members:
+        raise HTTPException(status_code=403, detail="Access denied")
+    return chat
+
+@app.get("/users/")
+def get_all_users(current_user = Depends(get_current_user), db: Session = Depends(get_db)):
+    users = db.query(models.User).all()
+    return [{"id": user.id, "username": user.username} for user in users]
+
 @app.post("/chats/{chat_id}/add-user/{user_id}")
 def add_user_to_group(chat_id: int, user_id: int, current_user = Depends(get_current_user), db: Session = Depends(get_db)):
+    # Проверяем, что чат существует и это групповой чат
+    chat = db.query(models.Chat).filter(models.Chat.id == chat_id).first()
+    if not chat:
+        raise HTTPException(status_code=404, detail="Chat not found")
+
+    # Проверяем, что текущий пользователь является участником чата
+    if current_user not in chat.members:
+        raise HTTPException(status_code=403, detail="Access denied")
+
+    # Проверяем, что добавляемый пользователь существует
+    user_to_add = db.query(models.User).filter(models.User.id == user_id).first()
+    if not user_to_add:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    # Проверяем, что пользователь еще не в чате
+    if user_to_add in chat.members:
+        raise HTTPException(status_code=400, detail="User already in chat")
+
     add_user_to_chat(db, chat_id, user_id)
-    return {"message": f"User {user_id} added to chat {chat_id}"}
+    return {"message": f"User {user_to_add.username} added to chat {chat.name}"}
 
 @app.post("/messages/")
 async def send_message(msg: MessageCreate, current_user: models.User = Depends(get_current_user), db: Session = Depends(get_db)):
