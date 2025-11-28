@@ -32,11 +32,19 @@ const WebSocketManager = {
     handleMessage(data) {
         try {
             const message = JSON.parse(data);
-            console.log('Получено сообщение:', message);
+            console.log('Получено сообщение через WebSocket:', message);
+            console.log('Текущий chat_id:', APP_STATE.currentChatId);
 
             if (message.type === 'chat_message') {
+                // Преобразуем к числу для корректного сравнения
+                const messageChatId = parseInt(message.chat_id);
+                const currentChatId = parseInt(APP_STATE.currentChatId);
+
+                console.log('Сравнение chat_id:', messageChatId, '===', currentChatId);
+
                 // Проверяем, что сообщение относится к текущему открытому чату
-                if (message.chat_id === APP_STATE.currentChatId) {
+                if (messageChatId === currentChatId) {
+                    console.log('Добавляем сообщение в UI');
                     // Добавляем сообщение в UI
                     UI.addMessage({
                         id: message.id,
@@ -46,7 +54,8 @@ const WebSocketManager = {
                     });
                 } else {
                     // Можно показать уведомление о новом сообщении в другом чате
-                    console.log('Новое сообщение в другом чате:', message.chat_id);
+                    console.log('Новое сообщение в другом чате:', messageChatId, 'текущий:', currentChatId);
+                    UI.showNotification(`Новое сообщение в другом чате`, 'info');
                 }
             } else if (message.type === 'system') {
                 UI.showNotification(message.content, 'info');

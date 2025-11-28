@@ -1,14 +1,12 @@
-FROM nginx:alpine
+FROM node:18-alpine
 
-# Копируем все файлы фронтенда
-COPY index.html /usr/share/nginx/html/
-COPY styles.css /usr/share/nginx/html/
-COPY js/ /usr/share/nginx/html/js/
+WORKDIR /app
 
-# Настраиваем nginx
-COPY nginx.conf /etc/nginx/conf.d/default.conf
+COPY package*.json ./
+RUN npm install
 
-EXPOSE 80
+COPY . .
 
-CMD ["nginx", "-g", "daemon off;"]
+EXPOSE 3000
 
+CMD ["npm", "start"]

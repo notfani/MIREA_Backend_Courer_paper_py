@@ -1,7 +1,6 @@
-README.md
+node_modules
+npm-debug.log
 .git
 .gitignore
-script.js
-node_modules
-*.md
+README.md
 
