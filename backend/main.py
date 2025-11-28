@@ -277,6 +277,9 @@ async def websocket_general_endpoint(websocket: WebSocket, token: str, db: Sessi
         from redis_client import add_online_user
         add_online_user(current_user.id, current_user.username)
 
+        # Словарь для отслеживания чатов, к которым подключен пользователь
+        user_chats = set()
+
         # Держим соединение открытым и обрабатываем сообщения
         try:
             while True:
@@ -288,6 +291,11 @@ async def websocket_general_endpoint(websocket: WebSocket, token: str, db: Sessi
                     chat_id = str(message_data.get("chat_id"))
                     content = message_data.get("content")
 
+                    # Проверяем, что пользователь является участником чата
+                    chat = db.query(models.Chat).filter(models.Chat.id == int(chat_id)).first()
+                    if not chat or current_user not in chat.members:
+                        continue
+
                     # Создаем объект MessageCreate для сохранения
                     msg = MessageCreate(chat_id=int(chat_id), content=content)
 
@@ -298,15 +306,45 @@ async def websocket_general_endpoint(websocket: WebSocket, token: str, db: Sessi
                     broadcast_data = {
                         "type": "chat_message",
                         "chat_id": int(chat_id),
+                        "id": db_message.id,
                         "username": current_user.username,
                         "content": content,
                         "timestamp": db_message.timestamp.isoformat()
                     }
                     await manager.broadcast_to_chat(json.dumps(broadcast_data), chat_id)
 
+                elif message_data.get("type") == "join_chat":
+                    # Подключаем пользователя к чату
+                    chat_id = str(message_data.get("chat_id"))
+
+                    # Проверяем, что пользователь является участником чата
+                    chat = db.query(models.Chat).filter(models.Chat.id == int(chat_id)).first()
+                    if chat and current_user in chat.members:
+                        # Добавляем соединение к менеджеру для этого чата
+                        if chat_id not in manager.active_connections:
+                            manager.active_connections[chat_id] = []
+                        if websocket not in manager.active_connections[chat_id]:
+                            manager.active_connections[chat_id].append(websocket)
+                            user_chats.add(chat_id)
+                            print(f"User {current_user.username} joined chat {chat_id}", flush=True)
+
+                elif message_data.get("type") == "leave_chat":
+                    # Отключаем пользователя от чата
+                    chat_id = str(message_data.get("chat_id"))
+                    if chat_id in user_chats:
+                        if chat_id in manager.active_connections and websocket in manager.active_connections[chat_id]:
+                            manager.active_connections[chat_id].remove(websocket)
+                            user_chats.remove(chat_id)
+                            print(f"User {current_user.username} left chat {chat_id}", flush=True)
+
         except WebSocketDisconnect:
             pass
         finally:
+            # Удаляем пользователя из всех чатов
+            for chat_id in user_chats:
+                if chat_id in manager.active_connections and websocket in manager.active_connections[chat_id]:
+                    manager.active_connections[chat_id].remove(websocket)
+
             from redis_client import remove_online_user
             remove_online_user(current_user.id)
 

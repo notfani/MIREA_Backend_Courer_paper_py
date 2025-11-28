@@ -96,6 +96,14 @@ async function createChat() {
 }
 
 async function selectChat(chatId, chatName) {
+    // Отправляем leave_chat для предыдущего чата
+    if (APP_STATE.currentChatId && APP_STATE.ws && APP_STATE.ws.readyState === WebSocket.OPEN) {
+        APP_STATE.ws.send(JSON.stringify({
+            type: 'leave_chat',
+            chat_id: APP_STATE.currentChatId
+        }));
+    }
+
     APP_STATE.currentChatId = chatId;
     APP_STATE.currentChatName = chatName;
 
@@ -113,6 +121,14 @@ async function selectChat(chatId, chatName) {
     try {
         const messages = await API.getMessages(chatId);
         UI.renderMessages(messages);
+
+        // Отправляем join_chat для нового чата
+        if (APP_STATE.ws && APP_STATE.ws.readyState === WebSocket.OPEN) {
+            APP_STATE.ws.send(JSON.stringify({
+                type: 'join_chat',
+                chat_id: chatId
+            }));
+        }
     } catch (error) {
         UI.showNotification(`Ошибка загрузки сообщений: ${error.message}`, 'error');
     }
