@@ -13,7 +13,7 @@ async function register() {
     try {
         await API.register(username, password);
         UI.showNotification('Регистрация успешна! Войдите в систему', 'success');
-        UI.clearInputs();
+        await login();
     } catch (error) {
         UI.showNotification(error.message, 'error');
     }
