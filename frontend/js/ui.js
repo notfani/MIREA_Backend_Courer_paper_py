@@ -138,12 +138,15 @@ const UI = {
     },
 
     addMessage(message) {
+        // Нормализуем структуру сообщения (из API приходит message.user.username, из WebSocket - message.username)
+        const username = message.username || (message.user && message.user.username);
+
         const messageDiv = document.createElement('div');
-        messageDiv.className = `message ${message.username === APP_STATE.username ? 'own' : 'other'}`;
+        messageDiv.className = `message ${username === APP_STATE.username ? 'own' : 'other'}`;
 
         const headerDiv = document.createElement('div');
         headerDiv.className = 'message-header';
-        headerDiv.textContent = message.username;
+        headerDiv.textContent = username;
 
         const contentDiv = document.createElement('div');
         contentDiv.className = 'message-content';
