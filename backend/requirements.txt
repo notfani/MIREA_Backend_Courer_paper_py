@@ -13,3 +13,6 @@ cryptography
 prometheus-client
 python-dotenv
 python-multipart
+pytest
+pytest-asyncio
+httpx

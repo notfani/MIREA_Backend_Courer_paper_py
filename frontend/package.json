@@ -4,10 +4,12 @@
   "description": "Frontend for messenger application",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js"
+    "start": "node server.js",
+    "test": "echo 'Open test-runner.html in browser to run tests'"
   },
   "dependencies": {
     "express": "^4.18.2"
-  }
+  },
+  "devDependencies": {}
 }
 

@@ -10,15 +10,22 @@ logger = logging.getLogger(__name__)
 
 DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://user:password@db:5432/messenger")
 
+# Определяем параметры engine в зависимости от типа БД
+engine_kwargs = {
+    "pool_pre_ping": True,
+    "echo": False
+}
+
+# Добавляем параметры пула только для PostgreSQL
+if "postgresql" in DATABASE_URL:
+    engine_kwargs.update({
+        "pool_size": 10,
+        "max_overflow": 20,
+        "pool_recycle": 3600,  # Переподключаемся каждый час
+    })
+
 # Создаем engine с настройками пула и retry
-engine = create_engine(
-    DATABASE_URL,
-    pool_pre_ping=True,  # Проверяет соединение перед использованием
-    pool_size=10,
-    max_overflow=20,
-    pool_recycle=3600,  # Переподключаемся каждый час
-    echo=False
-)
+engine = create_engine(DATABASE_URL, **engine_kwargs)
 
 # Пытаемся подключиться с retry
 max_retries = 5
