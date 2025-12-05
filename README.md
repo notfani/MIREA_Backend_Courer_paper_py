@@ -1,248 +1,238 @@
-# 🚀 Инструкция по запуску мессенджера
+# Messenger Application
 
-## Быстрый старт
+Веб-приложение для обмена сообщениями в реальном времени с поддержкой WebSocket, построенное на FastAPI и PostgreSQL.
 
-### Способ 1: Docker Compose (рекомендуется)
+## Описание
 
+Приложение представляет собой полнофункциональный мессенджер с возможностью создания чатов, обмена сообщениями в реальном времени и управления участниками. Включает мониторинг через Prometheus и кэширование через Redis.
+
+## Технологический стек
+
+**Backend:**
+- FastAPI
+- PostgreSQL
+- Redis
+- WebSocket
+- SQLAlchemy
+
+**Frontend:**
+- Vanilla JavaScript
+- HTML5/CSS3
+- WebSocket API
+
+**Инфраструктура:**
+- Docker & Docker Compose
+- Nginx
+- Prometheus
+
+## Требования
+
+- Docker 20.10+
+- Docker Compose 1.29+
+
+Либо для локальной разработки:
+- Python 3.9+
+- PostgreSQL 13+
+- Redis 6+
+
+## Установка и запуск
+
+### Использование Docker Compose
+
+1. Клонируйте репозиторий:
 ```bash
-# 1. Клонируйте репозиторий (если еще не сделали)
-cd C:\Users\prime\PycharmProjects\MIREA_Py_Courcer_paper
-
-# 2. Настройте переменные окружения
-# Скопируйте .env.example в .env (файл .env уже создан)
-# Или создайте его вручную:
-copy .env.example .env
-
-# 3. Отредактируйте .env файл (ВАЖНО для продакшена!)
-# Откройте .env в текстовом редакторе и измените:
-# - SECRET_KEY на надежный ключ (например: openssl rand -hex 32)
-# - POSTGRES_PASSWORD на надежный пароль
-# - DATABASE_URL с новым паролем
-
-# 4. Запустите все сервисы
-docker-compose up --build
-
-# 5. Откройте браузер
-# Фронтенд: http://localhost
-# Backend API: http://localhost:8000
-# API Docs: http://localhost:8000/docs
-# Prometheus: http://localhost:9090
+git clone <repository-url>
+cd MIREA_Py_Courcer_paper
 ```
 
-### Способ 2: Локальная разработка
+2. Создайте файл `.env` на основе примера:
+```bash
+copy .env.example .env
+```
 
-#### Backend
+3. Настройте переменные окружения в `.env`:
+```env
+POSTGRES_USER=postgres
+POSTGRES_PASSWORD=<your_secure_password>
+POSTGRES_DB=messenger
+DATABASE_URL=postgresql://postgres:<your_password>@db:5432/messenger
+
+REDIS_URL=redis://redis:6379
+
+SECRET_KEY=<generate_secure_key>
+ALGORITHM=HS256
+ACCESS_TOKEN_EXPIRE_MINUTES=30
+
+NGINX_PORT=80
+PROMETHEUS_PORT=9090
+```
+
+4. Запустите приложение:
+```bash
+docker-compose up --build
+```
+
+5. Доступ к сервисам:
+- Приложение: http://localhost
+- API: http://localhost:8000
+- API документация: http://localhost:8000/docs
+- Prometheus: http://localhost:9090
+
+### Локальная разработка
+
+**Backend:**
 ```bash
 cd backend
-
-# Создайте .env файл в папке backend
-# Скопируйте переменные из корневого .env
-
 python -m venv venv
 venv\Scripts\activate
 pip install -r requirements.txt
 uvicorn main:app --reload --host 0.0.0.0 --port 8000
 ```
 
-#### Frontend
-Просто откройте `frontend/index.html` в браузере или используйте любой локальный сервер:
+**Frontend:**
 ```bash
 cd frontend
 python -m http.server 3000
 ```
 
-## ⚙️ Настройка переменных окружения
+## Конфигурация
 
-### Структура .env файла:
+### Переменные окружения
 
-```env
-# Database Configuration
-POSTGRES_USER=postgres
-POSTGRES_PASSWORD=your_secure_password_here
-POSTGRES_DB=messenger
-DATABASE_URL=postgresql://postgres:your_password@db:5432/messenger
-
-# Redis Configuration
-REDIS_URL=redis://redis:6379
-
-# Backend Configuration
-SECRET_KEY=your-secret-key-CHANGE-THIS
-ALGORITHM=HS256
-ACCESS_TOKEN_EXPIRE_MINUTES=30
-
-# Ports
-NGINX_PORT=80
-PROMETHEUS_PORT=9090
-```
+| Переменная | Описание | Значение по умолчанию |
+|-----------|----------|---------------------|
+| `POSTGRES_USER` | Имя пользователя PostgreSQL | postgres |
+| `POSTGRES_PASSWORD` | Пароль PostgreSQL | - |
+| `POSTGRES_DB` | Название базы данных | messenger |
+| `DATABASE_URL` | URL подключения к БД | - |
+| `REDIS_URL` | URL подключения к Redis | redis://redis:6379 |
+| `SECRET_KEY` | Секретный ключ для JWT | - |
+| `ALGORITHM` | Алгоритм шифрования | HS256 |
+| `ACCESS_TOKEN_EXPIRE_MINUTES` | Время жизни токена | 30 |
 
 ### Генерация SECRET_KEY
 
-#### Windows PowerShell:
+Windows PowerShell:
 ```powershell
-# Используйте Python
 python -c "import secrets; print(secrets.token_hex(32))"
 ```
 
-#### Linux/Mac:
+Linux/macOS:
 ```bash
 openssl rand -hex 32
 ```
 
-## 🎨 Что вы увидите
+### Настройка портов
 
-### 1. Страница входа
-- Красивый градиентный фон
-- Форма входа/регистрации
-- Анимации при загрузке
-
-### 2. Главный интерфейс
-- Список чатов слева
-- Область сообщений справа
-- Поле ввода внизу
-- Кнопка управления участниками
-
-### 3. На мобильных устройствах
-- Адаптивная верстка
-- Выдвижное меню
-- Полноэкранные чаты
-
-## 🔧 Кастомизация
-
-### Изменение портов
-
-Отредактируйте `.env`:
+Отредактируйте `.env` для изменения портов:
 ```env
-NGINX_PORT=8080  # Вместо 80
-PROMETHEUS_PORT=9091  # Вместо 9090
+NGINX_PORT=8080
+PROMETHEUS_PORT=9091
 ```
 
-### Изменение цветовой схемы
-Отредактируйте `frontend/styles.css`:
-```css
-:root {
-    --primary-color: #667eea;     /* Ваш цвет */
-    --secondary-color: #764ba2;   /* Ваш цвет */
-}
-```
+### Настройка API URL для продакшена
 
-### Изменение API URL (для продакшена)
 Отредактируйте `frontend/js/config.js`:
 ```javascript
 const CONFIG = {
-    API_URL: 'https://your-api-url.com',
-    WS_URL: 'wss://your-api-url.com/ws',
+    API_URL: 'https://your-domain.com',
+    WS_URL: 'wss://your-domain.com/ws',
 };
 ```
 
-## 📝 Использование
+## API документация
 
-### Регистрация
-1. Введите имя пользователя и пароль
-2. Нажмите "Зарегистрироваться"
-3. После успеха войдите с теми же данными
+После запуска приложения автоматически сгенерированная документация доступна по адресу:
+- Swagger UI: http://localhost:8000/docs
+- ReDoc: http://localhost:8000/redoc
 
-### Создание чата
-1. Нажмите "Создать чат"
-2. Введите название
-3. Чат появится в списке
+## Управление Docker контейнерами
 
-### Отправка сообщений
-1. Выберите чат из списка
-2. Введите сообщение
-3. Нажмите Enter или кнопку "Отправить"
-
-### Управление участниками
-1. Откройте чат
-2. Нажмите "👥 Участники"
-3. Добавляйте или удаляйте пользователей
-
-## 🐛 Решение проблем
-
-### Порт уже занят
+Запуск в фоновом режиме:
 ```bash
-# Измените порты в .env файле
-NGINX_PORT=8080
+docker-compose up -d
+```
+
+Остановка:
+```bash
+docker-compose down
+```
+
+Просмотр логов:
+```bash
+docker-compose logs
+docker-compose logs backend
+```
+
+Перезапуск сервиса:
+```bash
+docker-compose restart nginx
+```
+
+Пересборка:
+```bash
+docker-compose up --build
+```
+
+## Безопасность
+
+### Рекомендации для продакшена
+
+1. Используйте надежные пароли для `POSTGRES_PASSWORD` и `SECRET_KEY`
+2. Настройте HTTPS/WSS вместо HTTP/WS
+3. Ограничьте доступ к портам через firewall
+4. Регулярно обновляйте зависимости
+5. Настройте резервное копирование базы данных
+6. Используйте переменные окружения для конфиденциальных данных
+
+## Диагностика проблем
+
+### Порт занят
+Измените порты в `.env` файле.
+
+### Ошибка подключения к базе данных
+Проверьте переменные в `.env` и убедитесь, что контейнер БД запущен:
+```bash
+docker-compose ps db
+docker-compose logs db
 ```
 
 ### WebSocket не подключается
-- Проверьте, запущен ли backend: `docker-compose ps`
-- Проверьте логи: `docker-compose logs backend`
-- Убедитесь, что порт 8000 доступен
-
-### Не загружаются стили
-- Проверьте пути к файлам
-- Убедитесь, что папка `js/` существует
-- Очистите кэш браузера (Ctrl+Shift+R)
-
-### Ошибка подключения к базе данных
-- Проверьте переменные в .env
-- Проверьте, запущен ли контейнер db: `docker-compose ps db`
-- Проверьте логи: `docker-compose logs db`
-
-### Ошибки в консоли
-- Откройте DevTools (F12)
-- Проверьте вкладку Console
-- Проверьте вкладку Network
-
-## 📱 Тестирование на мобильных
-
-### Chrome DevTools
-1. F12 → Toggle Device Toolbar (Ctrl+Shift+M)
-2. Выберите устройство (iPhone, iPad, etc.)
-3. Проверьте адаптивность
-
-### Реальное устройство
-1. Найдите IP вашего компьютера: `ipconfig` (Windows) или `ifconfig` (Linux/Mac)
-2. Откройте http://YOUR_IP на мобильном
-3. Убедитесь, что устройства в одной сети
-
-## 🔒 Безопасность для продакшена
-
-### Обязательно измените:
-- ✅ SECRET_KEY (генерируйте случайную строку)
-- ✅ POSTGRES_PASSWORD (используйте надежный пароль)
-- ✅ Обновите DATABASE_URL с новым паролем
-
-### Рекомендации:
-- Используйте HTTPS/WSS вместо HTTP/WS
-- Настройте firewall для ограничения доступа
-- Регулярно обновляйте зависимости
-- Настройте резервное копирование БД
-
-## 🎯 Следующие шаги
-
-- [ ] Добавить поддержку файлов
-- [ ] Реализовать голосовые сообщения
-- [ ] Добавить темную тему
-- [ ] Создать PWA версию
-- [ ] Добавить push-уведомления
-
-## 📞 Полезные команды Docker
-
+Проверьте статус backend:
 ```bash
-# Запуск
-docker-compose up -d
-
-# Остановка
-docker-compose down
-
-# Пересборка
-docker-compose up --build
-
-# Логи всех сервисов
-docker-compose logs
-
-# Логи конкретного сервиса
+docker-compose ps backend
 docker-compose logs backend
-
-# Перезапуск сервиса
-docker-compose restart nginx
-
-# Просмотр запущенных контейнеров
-docker-compose ps
 ```
 
----
+### Отладка фронтенда
+Откройте консоль разработчика (F12) и проверьте вкладки Console и Network.
 
-**Приятного использования! 🎉**
+## Архитектура
 
+```
+┌─────────────┐
+│   Nginx     │ (Reverse Proxy)
+└──────┬──────┘
+       │
+┌──────▼──────┐
+│  Frontend   │ (HTML/CSS/JS)
+└──────┬──────┘
+       │
+┌──────▼──────┐
+│  Backend    │ (FastAPI + WebSocket)
+└──┬────┬─────┘
+   │    │
+   │    └──────┐
+   │           │
+┌──▼─────┐ ┌──▼─────┐
+│Postgres│ │ Redis  │
+└────────┘ └────────┘
+```
+
+## Лицензия
+
+[MIT Licence](LICENSE)
+
+## Контакты
+
+[email](mailto:yin-nylon-lisp@duck.com)
